@@ -5,15 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Klassenbuch Pro</title>
     
-    <!-- Vue.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
-    
+    <!-- Stabilste Vue Quelle -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- PDF Library (html2pdf.js) -->
+    <!-- PDF Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
-    
     <!-- Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
@@ -27,11 +24,9 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        /* Toggle Switch */
         .toggle-checkbox:checked { right: 0; border-color: #10b981; }
         .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
         
-        /* Loading Spinner */
         .loader {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #0f172a;
@@ -46,13 +41,26 @@
 </head>
 <body>
 
-<!-- Ladebildschirm -->
+<!-- Ladebildschirm mit Fehleranzeige -->
 <div id="loading-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; display:flex; align-items:center; justify-content:center;">
-    <div style="text-align:center;">
-        <div class="loader"></div>
-        <p style="color:#64748b;">Lade System...</p>
+    <div style="text-align:center; padding: 20px;">
+        <div id="spinner" class="loader"></div>
+        <p id="loading-text" style="color:#64748b;">Lade System...</p>
+        <p id="error-text" style="color:red; display:none; max-width: 300px; margin: 20px auto; border: 1px solid red; padding: 10px; background: #fff0f0; border-radius: 5px;"></p>
     </div>
 </div>
+
+<script>
+    // Globaler Fehlerfänger für den Start
+    window.onerror = function(msg, url, line) {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('loading-text').style.display = 'none';
+        const errDiv = document.getElementById('error-text');
+        errDiv.style.display = 'block';
+        errDiv.innerHTML = "<strong>Fehler beim Starten:</strong><br>" + msg;
+        return false;
+    };
+</script>
 
 <div id="app" v-cloak class="min-h-screen flex flex-col">
 
@@ -197,10 +205,6 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-3">
-                                    <!-- LOGIK: 
-                                         - Wenn Abwesend (!present) UND keine Notiz (!note): Rot + Placeholder "UNGEKLÄRT"
-                                         - Sobald man schreibt, ist note nicht mehr leer -> normales Feld
-                                    -->
                                     <input type="text" v-model="student.note" @change="saveData" 
                                            :readonly="role === 'guest'"
                                            :placeholder="(!student.present && !student.note) ? 'UNGEKLÄRT' : 'Anmerkung...'"
@@ -300,11 +304,19 @@
                 this.updateWeek();
             },
             mounted() {
-                document.getElementById('loading-screen').style.display = 'none';
-                lucide.createIcons();
+                // System ist bereit -> Ladescreen ausblenden
+                const loader = document.getElementById('loading-screen');
+                if(loader) loader.style.display = 'none';
+                
+                // Versuchen Icons zu laden
+                if(typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
             },
             updated() {
-                lucide.createIcons();
+                if(typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
             },
             methods: {
                 handleLogin() {
@@ -415,7 +427,7 @@
                 formatDateFull(d) { return new Date(d).toLocaleDateString('de-DE',{dateStyle:'full'}); },
                 getDayName(d) { return new Date(d).toLocaleDateString('de-DE',{weekday:'long'}); }
             }
-        });
+        }).mount('#app');
     });
 </script>
 </body>
