@@ -3,468 +3,425 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digitales Klassenbuch</title>
+    <title>Klassenbuch Pro</title>
     
-    <!-- Vue.js 3 -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- Tailwind CSS für Design -->
+    <!-- Stabilere CDN Quelle für Vue.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- html2pdf für PDF Export -->
+    
+    <!-- PDF Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <!-- Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        /* Custom Toggle Switch Style */
-        .toggle-checkbox:checked {
-            right: 0;
-            border-color: #22c55e;
+        /* WICHTIG: Versteckt alles, bis Vue geladen ist */
+        [v-cloak] { display: none !important; }
+        
+        body { font-family: sans-serif; background-color: #f1f5f9; }
+        
+        .glass-panel {
+            background: white;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        .toggle-checkbox:checked + .toggle-label {
-            background-color: #22c55e;
+        
+        /* Toggle Switch Design */
+        .toggle-checkbox:checked { right: 0; border-color: #10b981; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
+        
+        /* Loading Spinner */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 50px auto;
         }
-        [v-cloak] { display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans">
+<body>
 
-<div id="app" v-cloak class="min-h-screen flex flex-col">
+<!-- Lade-Indikator (verschwindet, sobald Vue übernimmt) -->
+<div id="loading-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; display:flex; align-items:center; justify-content:center;">
+    <div style="text-align:center;">
+        <div class="loader"></div>
+        <p style="color:#64748b; font-family:sans-serif;">System wird geladen...</p>
+    </div>
+</div>
 
-    <!-- Header / Navigation -->
-    <header class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50" v-if="view !== 'login'">
-        <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+<!-- Haupt Applikation -->
+<div id="app" v-cloak class="min-h-screen flex flex-col text-slate-800">
+
+    <!-- Header Navigation -->
+    <nav v-if="view !== 'login'" class="bg-white border-b border-slate-200 sticky top-0 z-50 h-16 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
             <div class="flex items-center gap-4">
-                <button @click="goBack" v-if="view !== 'calendar'" class="p-2 hover:bg-slate-100 rounded-full transition">
-                    <i data-lucide="chevron-left"></i>
+                <button v-if="view !== 'calendar'" @click="goBack" class="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition">
+                    <i data-lucide="arrow-left"></i>
                 </button>
-                <h1 class="text-xl font-bold text-slate-700 flex items-center gap-2">
-                    <i data-lucide="book-open" class="text-blue-600"></i> Klassenbuch
-                </h1>
+                <span class="font-bold text-lg tracking-tight">Klassenbuch <span class="text-slate-400 font-normal">Digital</span></span>
             </div>
+            
             <div class="flex items-center gap-3">
-                <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
-                      :class="role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'">
+                <span class="px-3 py-1 text-xs font-bold uppercase rounded-full tracking-wider"
+                      :class="role === 'admin' ? 'bg-slate-800 text-white' : 'bg-emerald-100 text-emerald-700'">
                     {{ role === 'admin' ? 'Administrator' : 'Gastzugang' }}
                 </span>
-                <button @click="logout" class="text-slate-400 hover:text-red-500">
+                <button @click="logout" class="ml-2 text-slate-400 hover:text-red-500 transition">
                     <i data-lucide="log-out"></i>
                 </button>
             </div>
         </div>
-    </header>
+    </nav>
 
     <!-- Main Content -->
-    <main class="flex-grow p-4 md:p-8 max-w-6xl mx-auto w-full">
+    <main class="flex-grow flex flex-col items-center p-4 w-full max-w-7xl mx-auto">
 
         <!-- VIEW: Login -->
-        <div v-if="view === 'login'" class="flex items-center justify-center h-[80vh]">
-            <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100">
-                <div class="text-center mb-6">
-                    <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-white">
-                        <i data-lucide="lock" size="32"></i>
+        <div v-if="view === 'login'" class="flex flex-col items-center justify-center h-[80vh] w-full">
+            <div class="glass-panel p-10 rounded-2xl w-full max-w-sm text-center">
+                <div class="mb-6 flex justify-center">
+                    <div class="bg-slate-900 text-white p-3 rounded-xl shadow-lg">
+                        <i data-lucide="lock" width="24" height="24"></i>
                     </div>
-                    <h2 class="text-2xl font-bold">Anmeldung</h2>
-                    <p class="text-slate-400">Geben Sie Ihr Passwort ein</p>
                 </div>
-                <form @submit.prevent="handleLogin" class="space-y-4">
-                    <input type="password" v-model="password" placeholder="Passwort..." 
-                           class="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition">
-                    <p v-if="error" class="text-red-500 text-sm text-center">{{ error }}</p>
-                    <button type="submit" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-slate-800 transition">
-                        Zugang anfordern
+                <h1 class="text-2xl font-bold mb-2">Anmeldung</h1>
+                <p class="text-slate-400 text-sm mb-8">Authentifizierung erforderlich</p>
+                
+                <form @submit.prevent="handleLogin">
+                    <div class="mb-4 text-left">
+                        <label class="text-xs font-bold text-slate-500 uppercase ml-1">Zugangscode</label>
+                        <input type="password" v-model="password" 
+                               class="w-full mt-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-800 focus:border-slate-800 outline-none transition"
+                               placeholder="•••••••">
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-lg font-bold transition shadow-md">
+                        Einloggen
                     </button>
                 </form>
-                <div class="mt-4 text-center text-xs text-slate-300">
-                    Passwörter: "Admin" oder "Gast"
-                </div>
+                
+                <p v-if="error" class="mt-4 text-sm text-red-600 bg-red-50 py-2 rounded font-medium border border-red-100">
+                    {{ error }}
+                </p>
             </div>
+            <!-- Hier steht NICHTS mehr von Passwörtern -->
         </div>
 
         <!-- VIEW: Calendar -->
-        <div v-else-if="view === 'calendar'" class="max-w-lg mx-auto mt-10 text-center">
-            <h2 class="text-3xl font-bold mb-2">Willkommen</h2>
-            <p class="text-slate-500 mb-8">Wählen Sie einen Tag zur Bearbeitung</p>
-            
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <label class="block text-left text-sm font-bold text-slate-700 mb-2">Datum</label>
-                <input type="date" v-model="selectedDate" 
-                       class="w-full text-xl p-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none font-mono mb-6">
-                
-                <div class="grid gap-3">
-                    <button @click="selectDateAndContinue" :disabled="!selectedDate"
-                            class="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-bold shadow-lg shadow-blue-200 transition flex justify-center items-center gap-2">
-                        <i data-lucide="clock"></i> Stundenplan öffnen
-                    </button>
-                    <button @click="openWeeklyView" :disabled="!selectedDate"
-                            class="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold transition flex justify-center items-center gap-2">
-                        <i data-lucide="file-text"></i> Wochenübersicht (PDF)
-                    </button>
+        <div v-else-if="view === 'calendar'" class="w-full max-w-6xl mt-6">
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold">Wochenübersicht</h2>
+                    <p class="text-slate-500 text-sm">Bitte wählen Sie einen Tag aus</p>
+                </div>
+                <div class="flex bg-white rounded border border-slate-200">
+                    <button @click="changeWeek(-1)" class="px-3 py-2 hover:bg-slate-50 border-r"><i data-lucide="chevron-left" width="16"></i></button>
+                    <div class="px-4 py-2 text-sm font-mono flex items-center bg-slate-50 text-slate-600">{{ getWeekLabel() }}</div>
+                    <button @click="changeWeek(1)" class="px-3 py-2 hover:bg-slate-50 border-l"><i data-lucide="chevron-right" width="16"></i></button>
                 </div>
             </div>
-        </div>
 
-        <!-- VIEW: Period Selection -->
-        <div v-else-if="view === 'periods'">
-            <div class="text-center mb-8">
-                <h2 class="text-2xl font-bold">{{ formatDate(selectedDate) }}</h2>
-                <p class="text-slate-500">Wählen Sie die Unterrichtsstunde</p>
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+                <div v-for="(date, index) in currentWeek" :key="date" @click="selectDay(date)"
+                     class="glass-panel p-6 rounded-xl cursor-pointer hover:border-blue-500 hover:shadow-md transition group relative overflow-hidden h-36 flex flex-col justify-between">
+                    <span class="text-xs font-bold uppercase text-slate-400">
+                        {{ ['Mo', 'Di', 'Mi', 'Do', 'Fr'][index] }}
+                    </span>
+                    <span class="text-2xl font-bold text-slate-800 group-hover:text-blue-600 transition">
+                        {{ formatDateDay(date) }}
+                        <span class="text-sm font-normal text-slate-400 block">{{ formatDateMonth(date) }}</span>
+                    </span>
+                    <div class="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition text-blue-500">
+                        <i data-lucide="arrow-right" width="20"></i>
+                    </div>
+                </div>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <button v-for="i in 8" :key="i" @click="selectPeriod(i)"
-                        class="aspect-square bg-white border border-slate-200 rounded-2xl hover:border-blue-500 hover:shadow-lg hover:-translate-y-1 transition group flex flex-col items-center justify-center">
-                    <span class="text-4xl font-bold text-slate-300 group-hover:text-blue-600 transition">{{ i }}.</span>
-                    <span class="text-xs font-bold uppercase text-slate-400 group-hover:text-slate-600">Stunde</span>
+
+            <div v-if="role === 'admin'" class="text-center pt-8 border-t border-slate-200">
+                <button @click="generateMatrixPDF" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-3 rounded-lg font-medium shadow-sm inline-flex items-center gap-2">
+                    <i data-lucide="file-bar-chart-2" width="18"></i>
+                    Wochenbericht als PDF (A4 Quer)
                 </button>
             </div>
         </div>
 
-        <!-- VIEW: Attendance List -->
-        <div v-else-if="view === 'list'">
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+        <!-- VIEW: Period Selection -->
+        <div v-else-if="view === 'periods'" class="w-full max-w-4xl mt-8 text-center">
+            <h2 class="text-3xl font-bold mb-2">{{ getDayName(selectedDate) }}</h2>
+            <p class="text-slate-500 mb-10">{{ formatDateFull(selectedDate) }}</p>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button v-for="i in 8" :key="i" @click="selectPeriod(i)"
+                        class="glass-panel aspect-square rounded-xl flex flex-col items-center justify-center hover:scale-105 hover:border-blue-500 hover:shadow-lg transition cursor-pointer group">
+                    <span class="text-4xl font-black text-slate-200 group-hover:text-blue-600 transition mb-2">{{ i }}</span>
+                    <span class="text-xs font-bold uppercase text-slate-400">Stunde</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW: List -->
+        <div v-else-if="view === 'list'" class="w-full max-w-5xl mt-4">
+            <div class="glass-panel rounded-xl overflow-hidden">
+                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                     <div>
-                        <h3 class="font-bold text-lg text-slate-800">{{ selectedPeriod }}. Stunde</h3>
-                        <p class="text-xs text-slate-500">{{ formatDate(selectedDate) }}</p>
+                        <span class="text-xs font-bold uppercase text-blue-600 tracking-wider block mb-1">{{ selectedPeriod }}. Stunde</span>
+                        <h2 class="text-xl font-bold text-slate-800">Anwesenheitsliste</h2>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span v-if="saving" class="text-xs text-blue-500 animate-pulse">Speichert...</span>
-                        <div class="px-3 py-1 bg-white border border-slate-200 rounded text-sm font-mono">
-                            {{ students.filter(s => s.present).length }} / {{ students.length }} Anwesend
-                        </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold">{{ students.filter(s => s.present).length }} <span class="text-slate-400 text-lg">/ {{ students.length }}</span></div>
                     </div>
                 </div>
 
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                                <th class="px-6 py-3 font-semibold">Name</th>
-                                <th class="px-6 py-3 font-semibold text-center w-40">Anwesenheit</th>
-                                <th class="px-6 py-3 font-semibold">Anmerkungen</th>
-                                <th v-if="role === 'admin'" class="px-6 py-3 w-16"></th>
+                            <tr class="bg-white border-b border-slate-100 text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                <th class="px-6 py-3">Name</th>
+                                <th class="px-6 py-3 text-center">Anwesend?</th>
+                                <th class="px-6 py-3">Notiz / Status</th>
+                                <th v-if="role === 'admin'" class="px-4 py-3"></th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <tr v-for="(student, index) in students" :key="student.id" 
-                                class="hover:bg-slate-50 transition"
-                                :class="{'bg-red-50 hover:bg-red-100': !student.present}">
-                                
-                                <!-- Name -->
+                        <tbody class="divide-y divide-slate-50">
+                            <tr v-for="(student, index) in students" :key="student.id" class="hover:bg-slate-50 transition">
                                 <td class="px-6 py-3">
-                                    <input v-if="role === 'admin'" type="text" v-model="student.name" @change="autoSave"
-                                           class="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none font-medium">
-                                    <span v-else class="font-medium">{{ student.name }}</span>
+                                    <input v-if="role === 'admin'" type="text" v-model="student.name" @change="saveData"
+                                           class="w-full bg-transparent border-none outline-none font-medium text-slate-700 placeholder:text-slate-300">
+                                    <span v-else class="font-medium text-slate-700">{{ student.name }}</span>
                                 </td>
-
-                                <!-- Toggle Slider -->
                                 <td class="px-6 py-3 flex justify-center">
-                                    <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
-                                        <input type="checkbox" :id="'toggle-'+index" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"
-                                               style="top:0; left:0; transition: all 0.3s;"
-                                               v-model="student.present" @change="autoSave">
-                                        <label :for="'toggle-'+index" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer border border-gray-300"
-                                               :class="{'bg-green-500 border-green-500': student.present, 'bg-red-300 border-red-300': !student.present}"></label>
+                                    <div class="relative inline-block w-10 h-6 align-middle select-none">
+                                        <input type="checkbox" :id="'toggle-'+index" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                                               style="top:4px; left:4px; transition: all 0.3s;"
+                                               v-model="student.present" @change="saveData">
+                                        <label :for="'toggle-'+index" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer transition-colors"
+                                               :class="{'bg-emerald-500': student.present}"></label>
                                     </div>
                                 </td>
-
-                                <!-- Notes -->
                                 <td class="px-6 py-3">
-                                    <input type="text" v-model="student.note" @change="autoSave" :readonly="role === 'guest'"
-                                           placeholder="..." class="w-full text-sm bg-transparent border border-transparent hover:border-slate-200 focus:border-blue-400 rounded px-2 py-1 outline-none text-slate-600">
+                                    <input type="text" v-model="student.note" @change="saveData" :readonly="role === 'guest'"
+                                           :class="{
+                                               'bg-red-50 text-red-600 border border-red-200 font-bold placeholder:text-red-400': !student.present && !student.note,
+                                               'bg-transparent border border-transparent hover:border-slate-200': student.present || student.note
+                                           }"
+                                           class="w-full text-sm rounded px-2 py-1 outline-none transition"
+                                           :placeholder="!student.present && !student.note ? 'UNGEKLÄRT' : 'Notiz...'">
                                 </td>
-
-                                <!-- Delete -->
-                                <td v-if="role === 'admin'" class="px-6 py-3 text-center">
+                                <td v-if="role === 'admin'" class="px-4 py-3 text-center">
                                     <button @click="removeStudent(index)" class="text-slate-300 hover:text-red-500 transition">
-                                        <i data-lucide="trash-2" width="18"></i>
+                                        <i data-lucide="trash-2" width="16"></i>
                                     </button>
                                 </td>
                             </tr>
                             <tr v-if="students.length === 0">
-                                <td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">Keine Einträge vorhanden.</td>
+                                <td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">Noch keine Einträge.</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- Admin Add Row -->
-                <div v-if="role === 'admin'" class="p-4 bg-slate-50 border-t border-slate-200">
-                    <form @submit.prevent="addStudent" class="flex gap-2">
-                        <input type="text" v-model="newStudentName" placeholder="Neuer Name..." 
-                               class="flex-1 px-4 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
-                            <i data-lucide="plus" width="16"></i> Hinzufügen
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- VIEW: Weekly Overview -->
-        <div v-else-if="view === 'weekly'">
-            <div class="flex justify-between items-end mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-slate-800">Wochenübersicht</h2>
-                    <p class="text-slate-500">{{ getWeekRange() }}</p>
-                </div>
-                <button @click="exportPDF" class="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 shadow-lg">
-                    <i data-lucide="printer"></i> Als PDF Exportieren
-                </button>
-            </div>
-
-            <!-- This container will be printed -->
-            <div id="pdf-content" class="bg-white p-8 rounded-xl shadow-none border border-slate-200">
-                <div class="mb-8 border-b-2 border-slate-800 pb-4 flex justify-between items-end">
-                    <div>
-                        <h1 class="text-3xl font-bold text-slate-900 uppercase tracking-tight">Anwesenheitsliste</h1>
-                        <p class="text-lg text-slate-600 mt-1">Klasse / Kurs XYZ</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="font-mono text-sm text-slate-500">Woche</p>
-                        <p class="font-bold">{{ getWeekRange() }}</p>
-                    </div>
-                </div>
-                
-                <div v-if="loadingWeek" class="text-center py-10 text-slate-400">Lade Daten...</div>
-
-                <div v-else class="space-y-8">
-                    <div v-for="(dayData, date) in weeklyData" :key="date" class="avoid-break">
-                        <h3 class="font-bold text-lg mb-3 border-l-4 border-blue-500 pl-3 bg-slate-50 py-1 flex justify-between">
-                            <span>{{ getDayName(date) }}</span>
-                            <span class="font-normal text-slate-500 text-sm">{{ formatDate(date) }}</span>
-                        </h3>
-
-                        <div v-if="Object.keys(dayData).length === 0" class="pl-4 text-sm text-slate-400 italic mb-4">
-                            Keine Unterrichtsstunden eingetragen.
-                        </div>
-
-                        <div v-else class="grid grid-cols-2 gap-4">
-                            <div v-for="(list, period) in dayData" :key="period" 
-                                 class="border border-slate-200 rounded p-3 text-sm">
-                                <div class="flex justify-between font-bold border-b border-slate-100 pb-1 mb-2">
-                                    <span>{{ period }}. Stunde</span>
-                                    <span :class="hasAbsentees(list) ? 'text-red-600' : 'text-green-600'">
-                                        {{ countPresent(list) }}/{{ list.length }}
-                                    </span>
-                                </div>
-                                <ul v-if="hasAbsentees(list)" class="space-y-1">
-                                    <li v-for="s in list.filter(x => !x.present)" class="flex justify-between text-red-600 text-xs">
-                                        <span>{{ s.name }}</span>
-                                        <span class="italic text-slate-400">{{ s.note }}</span>
-                                    </li>
-                                </ul>
-                                <div v-else class="text-green-600 text-xs flex items-center gap-1">
-                                    <i data-lucide="check-circle-2" width="12"></i> Alle anwesend
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mt-8 pt-8 border-t border-slate-200 text-xs text-slate-400 flex justify-between">
-                    <span>Generiert am {{ new Date().toLocaleDateString('de-DE') }}</span>
-                    <span>Seite 1</span>
+                <div v-if="role === 'admin'" class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex gap-2">
+                    <input type="text" v-model="newStudentName" placeholder="Neuer Schüler..." class="flex-1 border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:border-slate-800">
+                    <button @click="addStudent" class="bg-slate-800 text-white px-4 py-2 rounded text-sm font-bold hover:bg-slate-700">Hinzufügen</button>
                 </div>
             </div>
         </div>
 
     </main>
+
+    <!-- HIDDEN PDF CONTAINER -->
+    <div id="pdf-container" class="hidden">
+        <div style="font-family: sans-serif; padding: 20px;">
+            <h1 style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">Wochenbericht: Anwesenheit</h1>
+            <p style="font-size: 12px; margin-bottom: 15px; color:#666;">{{ getWeekLabel() }}</p>
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                <thead>
+                    <tr>
+                        <th style="border:1px solid #333; padding:5px; background:#eee; text-align:left; width: 150px;">Name</th>
+                        <template v-for="d in ['Mo','Di','Mi','Do','Fr']">
+                            <th v-for="p in 8" style="border:1px solid #999; width:20px; text-align:center; background:#f9f9f9;">{{d}}{{p}}</th>
+                        </template>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="s in matrixData" :key="s.name">
+                        <td style="border:1px solid #333; padding:4px; font-weight:bold;">{{ s.name }}</td>
+                        <template v-for="dIdx in 5">
+                            <td v-for="p in 8" 
+                                :style="{
+                                    border: '1px solid #ccc',
+                                    textAlign: 'center',
+                                    backgroundColor: getMatrixColor(s, dIdx-1, p)
+                                }"></td>
+                        </template>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 
 <script>
-    const { createApp } = Vue;
+    // Warten bis DOM komplett geladen ist
+    document.addEventListener('DOMContentLoaded', () => {
+        // Ladebildschirm entfernen, wenn Vue mounted
+        const { createApp } = Vue;
 
-    createApp({
-        data() {
-            return {
-                view: 'login', // login, calendar, periods, list, weekly
-                role: null, // 'admin', 'guest'
-                password: '',
-                error: '',
-                
-                selectedDate: new Date().toISOString().split('T')[0],
-                selectedPeriod: null,
-                
-                students: [], // List for current view
-                newStudentName: '',
-                saving: false,
+        const app = createApp({
+            data() {
+                return {
+                    view: 'login',
+                    role: null,
+                    password: '',
+                    error: '',
+                    
+                    weekOffset: 0,
+                    currentWeek: [],
+                    selectedDate: null,
+                    selectedPeriod: null,
+                    
+                    students: [],
+                    newStudentName: '',
+                    matrixData: []
+                }
+            },
+            created() {
+                this.updateWeek();
+            },
+            mounted() {
+                // Skript erfolgreich geladen -> Loading Screen weg
+                document.getElementById('loading-screen').style.display = 'none';
+                lucide.createIcons();
+            },
+            updated() {
+                lucide.createIcons();
+            },
+            methods: {
+                // AUTH
+                handleLogin() {
+                    if(this.password === 'Admin') { this.role = 'admin'; this.view = 'calendar'; }
+                    else if(this.password === 'Gast') { this.role = 'guest'; this.view = 'calendar'; }
+                    else { this.error = 'Falsches Passwort.'; }
+                    this.password = '';
+                },
+                logout() {
+                    this.role = null;
+                    this.view = 'login';
+                },
+                goBack() {
+                    if(this.view === 'list') this.view = 'periods';
+                    else if(this.view === 'periods') this.view = 'calendar';
+                },
 
-                // Weekly view
-                weeklyData: {},
-                weekDates: [],
-                loadingWeek: false
+                // WEEK LOGIC
+                updateWeek() {
+                    const curr = new Date();
+                    const day = curr.getDay();
+                    const diff = curr.getDate() - day + (day === 0 ? -6 : 1) + (this.weekOffset * 7);
+                    const monday = new Date(curr.setDate(diff));
+                    this.currentWeek = [];
+                    for(let i=0; i<5; i++) {
+                        const d = new Date(monday);
+                        d.setDate(monday.getDate() + i);
+                        this.currentWeek.push(d.toISOString().split('T')[0]);
+                    }
+                },
+                changeWeek(delta) {
+                    this.weekOffset += delta;
+                    this.updateWeek();
+                },
+                getWeekLabel() {
+                    if(!this.currentWeek.length) return '';
+                    const s = this.currentWeek[0].split('-');
+                    const e = this.currentWeek[4].split('-');
+                    return `${s[2]}.${s[1]}. - ${e[2]}.${e[1]}.`;
+                },
+
+                // NAVIGATION
+                selectDay(d) { this.selectedDate = d; this.view = 'periods'; },
+                selectPeriod(p) { this.selectedPeriod = p; this.fetchData(); this.view = 'list'; },
+
+                // DATA
+                async fetchData() {
+                    try {
+                        const res = await fetch(`/api/attendance/${this.selectedDate}/${this.selectedPeriod}`);
+                        this.students = await res.json();
+                    } catch(e) { console.error(e); this.students = []; }
+                },
+                async saveData() {
+                    try {
+                        await fetch('/api/attendance', {
+                            method: 'POST',
+                            headers: {'Content-Type':'application/json'},
+                            body: JSON.stringify({
+                                date: this.selectedDate,
+                                period: this.selectedPeriod,
+                                list: this.students
+                            })
+                        });
+                    } catch(e) { console.error(e); }
+                },
+                addStudent() {
+                    if(!this.newStudentName.trim()) return;
+                    this.students.push({ id: Date.now(), name: this.newStudentName, present: true, note: '' });
+                    this.newStudentName = '';
+                    this.students.sort((a,b)=>a.name.localeCompare(b.name));
+                    this.saveData();
+                },
+                removeStudent(idx) {
+                    if(confirm('Löschen?')) {
+                        this.students.splice(idx, 1);
+                        this.saveData();
+                    }
+                },
+
+                // PDF
+                async generateMatrixPDF() {
+                    try {
+                        const res = await fetch('/api/matrix', {
+                            method: 'POST',
+                            headers: {'Content-Type':'application/json'},
+                            body: JSON.stringify({ weekDates: this.currentWeek })
+                        });
+                        this.matrixData = await res.json();
+                        
+                        this.$nextTick(() => {
+                            const el = document.getElementById('pdf-container');
+                            el.classList.remove('hidden');
+                            const opt = { margin: 5, filename: 'wochenbericht.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
+                            html2pdf().set(opt).from(el).save().then(() => el.classList.add('hidden'));
+                        });
+                    } catch(e) { alert('Fehler beim PDF Export'); }
+                },
+                getMatrixColor(s, dIdx, p) {
+                    const key = `${dIdx}_${p}`;
+                    const val = s.slots[key];
+                    if(val === true) return '#86efac';
+                    if(val === false) return '#fca5a5';
+                    return 'white';
+                },
+
+                // FORMAT
+                formatDateDay(d) { return d.split('-')[2]; },
+                formatDateMonth(d) { return new Date(d).toLocaleDateString('de-DE', { month:'long' }); },
+                formatDateFull(d) { return new Date(d).toLocaleDateString('de-DE', { dateStyle:'full' }); },
+                getDayName(d) { return new Date(d).toLocaleDateString('de-DE', { weekday:'long' }); }
             }
-        },
-        mounted() {
-            lucide.createIcons();
-        },
-        updated() {
-            lucide.createIcons();
-        },
-        methods: {
-            handleLogin() {
-                if (this.password === 'Admin') {
-                    this.role = 'admin';
-                    this.view = 'calendar';
-                    this.error = '';
-                } else if (this.password === 'Gast') {
-                    this.role = 'guest';
-                    this.view = 'calendar';
-                    this.error = '';
-                } else {
-                    this.error = 'Falsches Passwort';
-                }
-                this.password = '';
-            },
-            logout() {
-                this.role = null;
-                this.view = 'login';
-                this.students = [];
-            },
-            goBack() {
-                if (this.view === 'list') this.view = 'periods';
-                else if (this.view === 'periods') this.view = 'calendar';
-                else if (this.view === 'weekly') this.view = 'calendar';
-            },
-            
-            // --- Navigation ---
-            selectDateAndContinue() {
-                this.view = 'periods';
-            },
-            selectPeriod(p) {
-                this.selectedPeriod = p;
-                this.loadAttendance();
-                this.view = 'list';
-            },
+        });
 
-            // --- API Calls ---
-            async loadAttendance() {
-                try {
-                    const res = await fetch(`/api/attendance/${this.selectedDate}/${this.selectedPeriod}`);
-                    const data = await res.json();
-                    this.students = data;
-                } catch (e) {
-                    console.error(e);
-                }
-            },
-            async autoSave() {
-                this.saving = true;
-                try {
-                    await fetch('/api/attendance', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            date: this.selectedDate,
-                            period: this.selectedPeriod,
-                            list: this.students
-                        })
-                    });
-                } catch(e) { console.error(e); }
-                setTimeout(() => this.saving = false, 500);
-            },
-            
-            // --- List Management ---
-            addStudent() {
-                if(!this.newStudentName.trim()) return;
-                this.students.push({
-                    id: Date.now(),
-                    name: this.newStudentName,
-                    present: true,
-                    note: ''
-                });
-                this.newStudentName = '';
-                this.autoSave();
-            },
-            removeStudent(index) {
-                if(confirm('Löschen?')) {
-                    this.students.splice(index, 1);
-                    this.autoSave();
-                }
-            },
-
-            // --- Weekly Logic ---
-            openWeeklyView() {
-                this.view = 'weekly';
-                this.calculateWeek();
-                this.fetchWeeklyData();
-            },
-            calculateWeek() {
-                const current = new Date(this.selectedDate);
-                // Adjust to Monday
-                const day = current.getDay();
-                const diff = current.getDate() - day + (day === 0 ? -6 : 1);
-                const monday = new Date(current.setDate(diff));
-                
-                this.weekDates = [];
-                for(let i=0; i<5; i++) {
-                    const d = new Date(monday);
-                    d.setDate(monday.getDate() + i);
-                    this.weekDates.push(d.toISOString().split('T')[0]);
-                }
-            },
-            async fetchWeeklyData() {
-                this.loadingWeek = true;
-                try {
-                    const res = await fetch('/api/weekly', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ dates: this.weekDates })
-                    });
-                    this.weeklyData = await res.json();
-                } catch(e) { console.error(e); }
-                this.loadingWeek = false;
-            },
-            exportPDF() {
-                const element = document.getElementById('pdf-content');
-                const opt = {
-                    margin: 10,
-                    filename: `Anwesenheit_KW_${this.getWeekNumber(new Date(this.weekDates[0]))}.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2 },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
-                html2pdf().set(opt).from(element).save();
-            },
-
-            // --- Helpers ---
-            formatDate(str) {
-                if(!str) return '';
-                const [y, m, d] = str.split('-');
-                return `${d}.${m}.${y}`;
-            },
-            getDayName(str) {
-                const date = new Date(str);
-                return date.toLocaleDateString('de-DE', { weekday: 'long' });
-            },
-            getWeekRange() {
-                if(this.weekDates.length === 0) return '';
-                return `${this.formatDate(this.weekDates[0])} - ${this.formatDate(this.weekDates[4])}`;
-            },
-            getWeekNumber(d) {
-                d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-                d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
-                var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-                var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
-                return weekNo;
-            },
-            hasAbsentees(list) {
-                if(!list) return false;
-                return list.some(s => !s.present);
-            },
-            countPresent(list) {
-                if(!list) return 0;
-                return list.filter(s => s.present).length;
-            }
-        }
+        app.mount('#app');
     });
 </script>
-
-<style>
-    /* Print optimizations */
-    .avoid-break {
-        page-break-inside: avoid;
-    }
-</style>
 </body>
 </html>
+
 
