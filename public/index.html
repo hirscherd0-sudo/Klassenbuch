@@ -5,61 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Klassenbuch Pro</title>
     
-    <!-- Stabilere CDN Quelle für Vue.js -->
+    <!-- Vue.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- PDF Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- PDF Library (html2pdf.js) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
     
     <!-- Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        /* WICHTIG: Versteckt alles, bis Vue geladen ist */
         [v-cloak] { display: none !important; }
-        
-        body { font-family: sans-serif; background-color: #f1f5f9; }
+        body { font-family: sans-serif; background-color: #f8fafc; color: #1e293b; }
         
         .glass-panel {
             background: white;
             border: 1px solid #e2e8f0;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        
-        /* Toggle Switch Design */
+
+        /* Toggle Switch */
         .toggle-checkbox:checked { right: 0; border-color: #10b981; }
         .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
         
         /* Loading Spinner */
         .loader {
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #3b82f6;
+            border-top: 4px solid #0f172a;
             border-radius: 50%;
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
-            margin: 50px auto;
+            margin: 0 auto 20px auto;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<!-- Lade-Indikator (verschwindet, sobald Vue übernimmt) -->
+<!-- Ladebildschirm -->
 <div id="loading-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; display:flex; align-items:center; justify-content:center;">
     <div style="text-align:center;">
         <div class="loader"></div>
-        <p style="color:#64748b; font-family:sans-serif;">System wird geladen...</p>
+        <p style="color:#64748b;">Lade System...</p>
     </div>
 </div>
 
-<!-- Haupt Applikation -->
-<div id="app" v-cloak class="min-h-screen flex flex-col text-slate-800">
+<div id="app" v-cloak class="min-h-screen flex flex-col">
 
-    <!-- Header Navigation -->
+    <!-- Navbar -->
     <nav v-if="view !== 'login'" class="bg-white border-b border-slate-200 sticky top-0 z-50 h-16 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 h-full flex justify-between items-center">
             <div class="flex items-center gap-4">
@@ -82,7 +79,7 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="flex-grow flex flex-col items-center p-4 w-full max-w-7xl mx-auto">
+    <main class="flex-grow flex flex-col items-center p-6 w-full max-w-7xl mx-auto">
 
         <!-- VIEW: Login -->
         <div v-if="view === 'login'" class="flex flex-col items-center justify-center h-[80vh] w-full">
@@ -93,26 +90,20 @@
                     </div>
                 </div>
                 <h1 class="text-2xl font-bold mb-2">Anmeldung</h1>
-                <p class="text-slate-400 text-sm mb-8">Authentifizierung erforderlich</p>
+                <p class="text-slate-400 text-sm mb-8">Bitte identifizieren Sie sich</p>
                 
                 <form @submit.prevent="handleLogin">
                     <div class="mb-4 text-left">
-                        <label class="text-xs font-bold text-slate-500 uppercase ml-1">Zugangscode</label>
                         <input type="password" v-model="password" 
-                               class="w-full mt-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-800 focus:border-slate-800 outline-none transition"
-                               placeholder="•••••••">
+                               class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-800 outline-none transition"
+                               placeholder="Passwort eingeben...">
                     </div>
-                    
                     <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-lg font-bold transition shadow-md">
-                        Einloggen
+                        Weiter
                     </button>
                 </form>
-                
-                <p v-if="error" class="mt-4 text-sm text-red-600 bg-red-50 py-2 rounded font-medium border border-red-100">
-                    {{ error }}
-                </p>
+                <p v-if="error" class="mt-4 text-sm text-red-600 font-medium">{{ error }}</p>
             </div>
-            <!-- Hier steht NICHTS mehr von Passwörtern -->
         </div>
 
         <!-- VIEW: Calendar -->
@@ -120,7 +111,7 @@
             <div class="flex justify-between items-end mb-6">
                 <div>
                     <h2 class="text-2xl font-bold">Wochenübersicht</h2>
-                    <p class="text-slate-500 text-sm">Bitte wählen Sie einen Tag aus</p>
+                    <p class="text-slate-500 text-sm">Wählen Sie einen Tag</p>
                 </div>
                 <div class="flex bg-white rounded border border-slate-200">
                     <button @click="changeWeek(-1)" class="px-3 py-2 hover:bg-slate-50 border-r"><i data-lucide="chevron-left" width="16"></i></button>
@@ -131,24 +122,24 @@
 
             <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
                 <div v-for="(date, index) in currentWeek" :key="date" @click="selectDay(date)"
-                     class="glass-panel p-6 rounded-xl cursor-pointer hover:border-blue-500 hover:shadow-md transition group relative overflow-hidden h-36 flex flex-col justify-between">
-                    <span class="text-xs font-bold uppercase text-slate-400">
-                        {{ ['Mo', 'Di', 'Mi', 'Do', 'Fr'][index] }}
-                    </span>
-                    <span class="text-2xl font-bold text-slate-800 group-hover:text-blue-600 transition">
+                     class="glass-panel p-6 rounded-xl cursor-pointer hover:border-blue-500 hover:shadow-md transition h-36 flex flex-col justify-between group">
+                    <span class="text-xs font-bold uppercase text-slate-400">{{ ['Mo', 'Di', 'Mi', 'Do', 'Fr'][index] }}</span>
+                    <span class="text-2xl font-bold text-slate-800 group-hover:text-blue-600">
                         {{ formatDateDay(date) }}
                         <span class="text-sm font-normal text-slate-400 block">{{ formatDateMonth(date) }}</span>
                     </span>
-                    <div class="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition text-blue-500">
+                    <div class="text-right opacity-0 group-hover:opacity-100 transition text-blue-500">
                         <i data-lucide="arrow-right" width="20"></i>
                     </div>
                 </div>
             </div>
 
             <div v-if="role === 'admin'" class="text-center pt-8 border-t border-slate-200">
-                <button @click="generateMatrixPDF" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-3 rounded-lg font-medium shadow-sm inline-flex items-center gap-2">
-                    <i data-lucide="file-bar-chart-2" width="18"></i>
-                    Wochenbericht als PDF (A4 Quer)
+                <button @click="generateMatrixPDF" :disabled="generatingPdf" 
+                        class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-3 rounded-lg font-medium shadow-sm inline-flex items-center gap-2 disabled:opacity-50">
+                    <i v-if="!generatingPdf" data-lucide="printer" width="18"></i>
+                    <span v-else class="animate-spin text-lg">⟳</span>
+                    {{ generatingPdf ? 'Erstelle PDF...' : 'Wochenbericht PDF (A4 Quer)' }}
                 </button>
             </div>
         </div>
@@ -173,7 +164,7 @@
                 <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                     <div>
                         <span class="text-xs font-bold uppercase text-blue-600 tracking-wider block mb-1">{{ selectedPeriod }}. Stunde</span>
-                        <h2 class="text-xl font-bold text-slate-800">Anwesenheitsliste</h2>
+                        <h2 class="text-xl font-bold text-slate-800">Anwesenheit</h2>
                     </div>
                     <div class="text-right">
                         <div class="text-2xl font-bold">{{ students.filter(s => s.present).length }} <span class="text-slate-400 text-lg">/ {{ students.length }}</span></div>
@@ -185,17 +176,16 @@
                         <thead>
                             <tr class="bg-white border-b border-slate-100 text-slate-400 text-xs font-bold uppercase tracking-wider">
                                 <th class="px-6 py-3">Name</th>
-                                <th class="px-6 py-3 text-center">Anwesend?</th>
-                                <th class="px-6 py-3">Notiz / Status</th>
+                                <th class="px-6 py-3 text-center">Anwesend</th>
+                                <th class="px-6 py-3">Anmerkung</th>
                                 <th v-if="role === 'admin'" class="px-4 py-3"></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-50">
                             <tr v-for="(student, index) in students" :key="student.id" class="hover:bg-slate-50 transition">
-                                <td class="px-6 py-3">
-                                    <input v-if="role === 'admin'" type="text" v-model="student.name" @change="saveData"
-                                           class="w-full bg-transparent border-none outline-none font-medium text-slate-700 placeholder:text-slate-300">
-                                    <span v-else class="font-medium text-slate-700">{{ student.name }}</span>
+                                <td class="px-6 py-3 font-medium">
+                                    <input v-if="role === 'admin'" type="text" v-model="student.name" @change="saveData" class="bg-transparent outline-none w-full">
+                                    <span v-else>{{ student.name }}</span>
                                 </td>
                                 <td class="px-6 py-3 flex justify-center">
                                     <div class="relative inline-block w-10 h-6 align-middle select-none">
@@ -207,22 +197,27 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-3">
-                                    <input type="text" v-model="student.note" @change="saveData" :readonly="role === 'guest'"
+                                    <!-- LOGIK: 
+                                         - Wenn Abwesend (!present) UND keine Notiz (!note): Rot + Placeholder "UNGEKLÄRT"
+                                         - Sobald man schreibt, ist note nicht mehr leer -> normales Feld
+                                    -->
+                                    <input type="text" v-model="student.note" @change="saveData" 
+                                           :readonly="role === 'guest'"
+                                           :placeholder="(!student.present && !student.note) ? 'UNGEKLÄRT' : 'Anmerkung...'"
                                            :class="{
-                                               'bg-red-50 text-red-600 border border-red-200 font-bold placeholder:text-red-400': !student.present && !student.note,
-                                               'bg-transparent border border-transparent hover:border-slate-200': student.present || student.note
+                                               'bg-red-50 text-red-600 placeholder-red-500 font-bold border-red-200': !student.present && !student.note,
+                                               'bg-white text-slate-600 border-transparent focus:border-slate-300': student.present || student.note
                                            }"
-                                           class="w-full text-sm rounded px-2 py-1 outline-none transition"
-                                           :placeholder="!student.present && !student.note ? 'UNGEKLÄRT' : 'Notiz...'">
+                                           class="w-full text-sm rounded border px-3 py-2 outline-none transition-colors">
                                 </td>
                                 <td v-if="role === 'admin'" class="px-4 py-3 text-center">
-                                    <button @click="removeStudent(index)" class="text-slate-300 hover:text-red-500 transition">
+                                    <button @click="removeStudent(index)" class="text-slate-300 hover:text-red-500">
                                         <i data-lucide="trash-2" width="16"></i>
                                     </button>
                                 </td>
                             </tr>
                             <tr v-if="students.length === 0">
-                                <td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">Noch keine Einträge.</td>
+                                <td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">Keine Einträge.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -238,67 +233,73 @@
     </main>
 
     <!-- HIDDEN PDF CONTAINER -->
-    <div id="pdf-container" class="hidden">
-        <div style="font-family: sans-serif; padding: 20px;">
-            <h1 style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">Wochenbericht: Anwesenheit</h1>
-            <p style="font-size: 12px; margin-bottom: 15px; color:#666;">{{ getWeekLabel() }}</p>
-            <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+    <div id="pdf-container" style="position: absolute; left: -9999px; top: 0; width: 1100px;">
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h1 style="font-size: 24px; margin-bottom: 5px;">Wochenbericht Anwesenheit</h1>
+            <p style="font-size: 14px; margin-bottom: 20px; color: #555;">{{ getWeekLabel() }}</p>
+            
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
                 <thead>
                     <tr>
-                        <th style="border:1px solid #333; padding:5px; background:#eee; text-align:left; width: 150px;">Name</th>
+                        <th style="border: 1px solid #333; padding: 5px; background: #eee; text-align: left; width: 200px;">Name</th>
                         <template v-for="d in ['Mo','Di','Mi','Do','Fr']">
-                            <th v-for="p in 8" style="border:1px solid #999; width:20px; text-align:center; background:#f9f9f9;">{{d}}{{p}}</th>
+                            <th v-for="p in 8" style="border: 1px solid #999; text-align: center; width: 25px; background: #f9f9f9; padding: 2px;">
+                                {{d}}{{p}}
+                            </th>
                         </template>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="s in matrixData" :key="s.name">
-                        <td style="border:1px solid #333; padding:4px; font-weight:bold;">{{ s.name }}</td>
+                        <td style="border: 1px solid #333; padding: 4px; font-weight: bold;">{{ s.name }}</td>
                         <template v-for="dIdx in 5">
                             <td v-for="p in 8" 
                                 :style="{
                                     border: '1px solid #ccc',
-                                    textAlign: 'center',
-                                    backgroundColor: getMatrixColor(s, dIdx-1, p)
-                                }"></td>
+                                    backgroundColor: getMatrixColor(s, dIdx-1, p),
+                                    height: '20px'
+                                }">
+                            </td>
                         </template>
                     </tr>
                 </tbody>
             </table>
+            
+            <div style="margin-top: 20px; font-size: 10px;">
+                <span style="display:inline-block; width:12px; height:12px; background:#86efac; border:1px solid #333; margin-right:5px;"></span>Anwesend
+                <span style="display:inline-block; width:12px; height:12px; background:#fca5a5; border:1px solid #333; margin-left:15px; margin-right:5px;"></span>Abwesend
+                <span style="display:inline-block; width:12px; height:12px; background:white; border:1px solid #333; margin-left:15px; margin-right:5px;"></span>Keine Daten
+            </div>
         </div>
     </div>
 
 </div>
 
 <script>
-    // Warten bis DOM komplett geladen ist
     document.addEventListener('DOMContentLoaded', () => {
-        // Ladebildschirm entfernen, wenn Vue mounted
         const { createApp } = Vue;
 
-        const app = createApp({
+        createApp({
             data() {
                 return {
                     view: 'login',
                     role: null,
                     password: '',
                     error: '',
-                    
                     weekOffset: 0,
                     currentWeek: [],
                     selectedDate: null,
                     selectedPeriod: null,
-                    
                     students: [],
                     newStudentName: '',
-                    matrixData: []
+                    matrixData: [],
+                    generatingPdf: false
                 }
             },
             created() {
                 this.updateWeek();
             },
             mounted() {
-                // Skript erfolgreich geladen -> Loading Screen weg
                 document.getElementById('loading-screen').style.display = 'none';
                 lucide.createIcons();
             },
@@ -306,23 +307,17 @@
                 lucide.createIcons();
             },
             methods: {
-                // AUTH
                 handleLogin() {
                     if(this.password === 'Admin') { this.role = 'admin'; this.view = 'calendar'; }
                     else if(this.password === 'Gast') { this.role = 'guest'; this.view = 'calendar'; }
-                    else { this.error = 'Falsches Passwort.'; }
+                    else { this.error = 'Falsches Passwort'; }
                     this.password = '';
                 },
-                logout() {
-                    this.role = null;
-                    this.view = 'login';
-                },
+                logout() { this.role = null; this.view = 'login'; },
                 goBack() {
                     if(this.view === 'list') this.view = 'periods';
                     else if(this.view === 'periods') this.view = 'calendar';
                 },
-
-                // WEEK LOGIC
                 updateWeek() {
                     const curr = new Date();
                     const day = curr.getDay();
@@ -335,27 +330,21 @@
                         this.currentWeek.push(d.toISOString().split('T')[0]);
                     }
                 },
-                changeWeek(delta) {
-                    this.weekOffset += delta;
-                    this.updateWeek();
-                },
+                changeWeek(delta) { this.weekOffset += delta; this.updateWeek(); },
                 getWeekLabel() {
                     if(!this.currentWeek.length) return '';
                     const s = this.currentWeek[0].split('-');
                     const e = this.currentWeek[4].split('-');
                     return `${s[2]}.${s[1]}. - ${e[2]}.${e[1]}.`;
                 },
-
-                // NAVIGATION
                 selectDay(d) { this.selectedDate = d; this.view = 'periods'; },
                 selectPeriod(p) { this.selectedPeriod = p; this.fetchData(); this.view = 'list'; },
-
-                // DATA
+                
                 async fetchData() {
                     try {
                         const res = await fetch(`/api/attendance/${this.selectedDate}/${this.selectedPeriod}`);
                         this.students = await res.json();
-                    } catch(e) { console.error(e); this.students = []; }
+                    } catch(e) { this.students = []; }
                 },
                 async saveData() {
                     try {
@@ -368,7 +357,7 @@
                                 list: this.students
                             })
                         });
-                    } catch(e) { console.error(e); }
+                    } catch(e) {}
                 },
                 addStudent() {
                     if(!this.newStudentName.trim()) return;
@@ -377,30 +366,41 @@
                     this.students.sort((a,b)=>a.name.localeCompare(b.name));
                     this.saveData();
                 },
-                removeStudent(idx) {
-                    if(confirm('Löschen?')) {
-                        this.students.splice(idx, 1);
-                        this.saveData();
-                    }
-                },
-
-                // PDF
+                removeStudent(i) { if(confirm('Löschen?')) { this.students.splice(i,1); this.saveData(); } },
+                
+                // --- PDF EXPORT LOGIC ---
                 async generateMatrixPDF() {
+                    this.generatingPdf = true;
                     try {
+                        // 1. Daten holen
                         const res = await fetch('/api/matrix', {
                             method: 'POST',
                             headers: {'Content-Type':'application/json'},
                             body: JSON.stringify({ weekDates: this.currentWeek })
                         });
                         this.matrixData = await res.json();
+
+                        // 2. Kurz warten, damit DOM rendert
+                        await new Promise(r => setTimeout(r, 500));
+
+                        // 3. PDF erstellen
+                        const element = document.getElementById('pdf-container');
                         
-                        this.$nextTick(() => {
-                            const el = document.getElementById('pdf-container');
-                            el.classList.remove('hidden');
-                            const opt = { margin: 5, filename: 'wochenbericht.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
-                            html2pdf().set(opt).from(el).save().then(() => el.classList.add('hidden'));
-                        });
-                    } catch(e) { alert('Fehler beim PDF Export'); }
+                        const opt = {
+                            margin: 10,
+                            filename: `Wochenbericht_${this.currentWeek[0]}.pdf`,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2 },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                        };
+
+                        await html2pdf().set(opt).from(element).save();
+                        
+                    } catch(e) {
+                        alert('Fehler beim PDF Export: ' + e.message);
+                    } finally {
+                        this.generatingPdf = false;
+                    }
                 },
                 getMatrixColor(s, dIdx, p) {
                     const key = `${dIdx}_${p}`;
@@ -409,16 +409,13 @@
                     if(val === false) return '#fca5a5';
                     return 'white';
                 },
-
-                // FORMAT
+                
                 formatDateDay(d) { return d.split('-')[2]; },
-                formatDateMonth(d) { return new Date(d).toLocaleDateString('de-DE', { month:'long' }); },
-                formatDateFull(d) { return new Date(d).toLocaleDateString('de-DE', { dateStyle:'full' }); },
-                getDayName(d) { return new Date(d).toLocaleDateString('de-DE', { weekday:'long' }); }
+                formatDateMonth(d) { return new Date(d).toLocaleDateString('de-DE',{month:'long'}); },
+                formatDateFull(d) { return new Date(d).toLocaleDateString('de-DE',{dateStyle:'full'}); },
+                getDayName(d) { return new Date(d).toLocaleDateString('de-DE',{weekday:'long'}); }
             }
         });
-
-        app.mount('#app');
     });
 </script>
 </body>
