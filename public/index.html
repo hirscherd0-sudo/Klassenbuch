@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Klassenbuch Pro (Git)</title>
+    <title>Klassenbuch Git</title>
     
     <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -49,14 +49,24 @@
             </div>
             
             <div class="flex items-center gap-3">
-                <!-- Sync Indicator -->
-                <div v-if="isSaving" class="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                    <span class="animate-spin">⟳</span> Speichert...
+                <!-- Status Anzeige -->
+                <div class="text-xs font-bold px-3 py-1 rounded transition-colors"
+                     :class="{
+                         'bg-slate-100 text-slate-500': saveStatus === 'idle',
+                         'bg-blue-100 text-blue-600': saveStatus === 'saving',
+                         'bg-green-100 text-green-600': saveStatus === 'success',
+                         'bg-red-100 text-red-600 cursor-pointer': saveStatus === 'error'
+                     }"
+                     @click="saveStatus === 'error' ? alert(lastError) : null">
+                    <span v-if="saveStatus === 'idle'">Bereit</span>
+                    <span v-if="saveStatus === 'saving'" class="flex gap-1"><span class="animate-spin">⟳</span> GitHub...</span>
+                    <span v-if="saveStatus === 'success'">Gespeichert</span>
+                    <span v-if="saveStatus === 'error'">FEHLER!</span>
                 </div>
-                
+
                 <span class="px-3 py-1 text-xs font-bold uppercase rounded-full tracking-wider"
                       :class="role === 'admin' ? 'bg-slate-800 text-white' : 'bg-emerald-100 text-emerald-700'">
-                    {{ role === 'admin' ? 'Administrator' : 'Gastzugang' }}
+                    {{ role === 'admin' ? 'Administrator' : 'Gast' }}
                 </span>
                 <button @click="logout" class="ml-2 text-slate-400 hover:text-red-500 transition">
                     <i v-if="iconsLoaded" data-lucide="log-out"></i><span v-else>Exit</span>
@@ -90,7 +100,7 @@
             <div class="flex justify-between items-end mb-6">
                 <div>
                     <h2 class="text-2xl font-bold">Wochenübersicht</h2>
-                    <p class="text-slate-500 text-sm">Synchronisiert mit GitHub Repository</p>
+                    <p class="text-slate-500 text-sm">Daten aus GitHub: {{ repoName || 'Lädt...' }}</p>
                 </div>
                 <div class="flex bg-white rounded border border-slate-200">
                     <button @click="changeWeek(-1)" class="px-3 py-2 hover:bg-slate-50 border-r">&lt;</button>
@@ -155,11 +165,13 @@
                                 </td>
                                 <td class="px-6 py-3 flex justify-center">
                                     <div class="relative inline-block w-10 h-6 align-middle select-none">
+                                        <!-- CHECKBOX: Speichert sofort (saveNow) ohne Verzögerung -->
                                         <input type="checkbox" :id="'toggle-'+index" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer" style="top:4px; left:4px; transition: all 0.3s;" v-model="student.present" @change="saveNow">
                                         <label :for="'toggle-'+index" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer transition-colors" :class="{'bg-emerald-500': student.present}"></label>
                                     </div>
                                 </td>
                                 <td class="px-6 py-3">
+                                    <!-- INPUT: Speichert verzögert (debouncedSave) -->
                                     <input type="text" v-model="student.note" @change="debouncedSave" :placeholder="(!student.present && !student.note) ? 'UNGEKLÄRT' : 'Anmerkung...'" :class="{'bg-red-50 text-red-600 placeholder-red-500 font-bold border-red-200': !student.present && !student.note, 'bg-white text-slate-600 border-transparent focus:border-slate-300': student.present || student.note}" class="w-full text-sm rounded border px-3 py-2 outline-none transition-colors">
                                 </td>
                                 <td v-if="role === 'admin'" class="px-4 py-3 text-center">
@@ -209,7 +221,11 @@
                     view: 'login', role: null, password: '', error: '',
                     weekOffset: 0, currentWeek: [], selectedDate: null, selectedPeriod: null,
                     students: [], newStudentName: '', matrixData: [], generatingPdf: false, iconsLoaded: false,
-                    isSaving: false, saveTimeout: null
+                    // NEU: Status Management
+                    saveStatus: 'idle', // idle, saving, success, error
+                    lastError: '',
+                    repoName: '',
+                    saveTimeout: null
                 }
             },
             created() { this.updateWeek(); },
@@ -240,19 +256,34 @@
                 selectPeriod(p) { this.selectedPeriod = p; this.fetchData(); this.view = 'list'; },
                 
                 async fetchData() {
+                    this.saveStatus = 'idle';
                     try { const res = await fetch(`/api/attendance/${this.selectedDate}/${this.selectedPeriod}`); this.students = await res.json(); } catch(e) { this.students = []; }
                 },
                 
-                // Debouncing für Text-Inputs (damit nicht bei jedem Buchstaben gespeichert wird)
                 debouncedSave() {
                     if(this.saveTimeout) clearTimeout(this.saveTimeout);
-                    this.saveTimeout = setTimeout(() => this.saveNow(), 1500); // Wartet 1.5s nach letztem Tippen
+                    this.saveStatus = 'saving';
+                    this.saveTimeout = setTimeout(() => this.saveNow(), 1500); 
                 },
                 
                 async saveNow() {
-                    this.isSaving = true;
-                    try { await fetch('/api/attendance', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ date: this.selectedDate, period: this.selectedPeriod, list: this.students }) }); } catch(e) {}
-                    this.isSaving = false;
+                    if(this.saveTimeout) clearTimeout(this.saveTimeout);
+                    this.saveStatus = 'saving';
+                    try { 
+                        const res = await fetch('/api/attendance', { 
+                            method: 'POST', 
+                            headers: {'Content-Type':'application/json'}, 
+                            body: JSON.stringify({ date: this.selectedDate, period: this.selectedPeriod, list: this.students }) 
+                        });
+                        const data = await res.json();
+                        if(data.error) throw new Error(data.error);
+                        
+                        this.saveStatus = 'success';
+                        setTimeout(() => { if(this.saveStatus === 'success') this.saveStatus = 'idle'; }, 2000);
+                    } catch(e) { 
+                        this.saveStatus = 'error'; 
+                        this.lastError = e.message;
+                    }
                 },
                 
                 addStudent() { if(!this.newStudentName.trim()) return; this.students.push({ id: Date.now(), name: this.newStudentName, present: true, note: '' }); this.newStudentName = ''; this.students.sort((a,b)=>a.name.localeCompare(b.name)); this.saveNow(); },
