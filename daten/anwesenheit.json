@@ -1,3 +1,12 @@
 {
-  "attendance": {}
+  "attendance": {
+    "2025-12-29_1": [
+      {
+        "id": 1766997203781,
+        "name": "Lea",
+        "present": true,
+        "note": ""
+      }
+    ]
+  }
 }
