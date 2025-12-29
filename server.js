@@ -11,19 +11,19 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_REPO = process.env.GITHUB_REPO;   
 const FILE_PATH = "daten/anwesenheit.json"; 
 
-console.log("--- Server Start ---");
-console.log("Repo:", GITHUB_REPO ? GITHUB_REPO : "NICHT GESETZT");
-console.log("Token:", GITHUB_TOKEN ? "GESETZT (***)" : "NICHT GESETZT");
+console.log("------------------------------------------");
+console.log("SERVER START DIAGNOSE:");
+console.log("Repo gesetzt:", GITHUB_REPO ? "JA (" + GITHUB_REPO + ")" : "NEIN");
+console.log("Token gesetzt:", GITHUB_TOKEN ? "JA (Länge: " + GITHUB_TOKEN.length + ")" : "NEIN");
+console.log("------------------------------------------");
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
-// Cache
 let memoryCache = { attendance: {} };
 let lastSha = null;
 
-// Helper: GitHub API
 async function fetchFromGitHub() {
     if (!GITHUB_TOKEN || !GITHUB_REPO) return null;
     try {
@@ -37,24 +37,23 @@ async function fetchFromGitHub() {
         const content = Buffer.from(response.data.content, 'base64').toString('utf-8');
         return { data: JSON.parse(content), sha: response.data.sha };
     } catch (error) {
-        console.error("GitHub Ladefehler:", error.response?.status, error.response?.data?.message);
+        console.error("GitHub Fetch Fehler:", error.response?.status);
         return null;
     }
 }
 
-// Initial Laden
+// Initialer Check beim Start
 fetchFromGitHub().then(res => {
     if (res) {
         memoryCache = res.data;
         lastSha = res.sha;
-        console.log("✅ Initialdaten von GitHub geladen.");
+        console.log("✅ VERBINDUNG OK: Daten geladen.");
     } else {
-        console.log("⚠️ Konnte nicht von GitHub laden (oder Datei fehlt). Starte leer.");
+        console.log("⚠️ WARNUNG: Konnte GitHub nicht erreichen oder Datei existiert nicht.");
     }
 });
 
 app.get('/api/attendance/:date/:period', async (req, res) => {
-    // Versuche Update beim Lesen, falls Cache alt
     if (!lastSha) {
         const resGH = await fetchFromGitHub();
         if (resGH) { memoryCache = resGH.data; lastSha = resGH.sha; }
@@ -67,24 +66,24 @@ app.get('/api/attendance/:date/:period', async (req, res) => {
 app.post('/api/attendance', async (req, res) => {
     const { date, period, list } = req.body;
     
-    if (!GITHUB_TOKEN || !GITHUB_REPO) {
-        return res.status(500).json({ error: "Server Konfiguration fehlt (GITHUB_TOKEN/REPO)" });
-    }
+    // 1. Diagnose: Fehlen Variablen?
+    if (!GITHUB_TOKEN) return res.status(500).json({ error: "Fehler: 'GITHUB_TOKEN' fehlt in den Environment Variables." });
+    if (!GITHUB_REPO) return res.status(500).json({ error: "Fehler: 'GITHUB_REPO' fehlt in den Environment Variables." });
 
     try {
-        // 1. Neueste SHA holen (wichtig für Git Konflikte)
+        // Refresh SHA
         const refresh = await fetchFromGitHub();
         if (refresh) {
             memoryCache = refresh.data;
             lastSha = refresh.sha;
         }
 
-        // 2. Daten updaten
+        // Update Memory
         const key = `${date}_${period}`;
         if (!memoryCache.attendance) memoryCache.attendance = {};
         memoryCache.attendance[key] = list;
 
-        // 3. Push zu GitHub
+        // GitHub Push
         const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${FILE_PATH}`;
         const contentBase64 = Buffer.from(JSON.stringify(memoryCache, null, 2)).toString('base64');
         
@@ -98,21 +97,33 @@ app.post('/api/attendance', async (req, res) => {
             headers: { Authorization: `token ${GITHUB_TOKEN}` }
         });
 
-        // Neue SHA merken
         lastSha = ghRes.data.content.sha;
         console.log(`✅ Gespeichert: ${date} P${period}`);
         
         res.json({ success: true });
 
     } catch (error) {
-        console.error("Speicherfehler:", error.response?.data?.message || error.message);
-        res.status(500).json({ 
-            error: "GitHub Fehler: " + (error.response?.data?.message || error.message) 
-        });
+        // DETAILLIERTE FEHLERANALYSE
+        let msg = "Unbekannter Fehler";
+        let status = 500;
+
+        if (error.response) {
+            status = error.response.status;
+            const ghMsg = error.response.data?.message;
+            
+            if (status === 401) msg = "401 Unauthorized: Der Token ist falsch oder abgelaufen.";
+            else if (status === 404) msg = "404 Not Found: Repo-Name falsch oder Token hat keine Rechte für private Repos.";
+            else if (status === 409) msg = "409 Conflict: Daten-Konflikt. Bitte Seite neu laden.";
+            else msg = `GitHub API Fehler (${status}): ${ghMsg}`;
+        } else {
+            msg = error.message;
+        }
+
+        console.error("SPEICHER FEHLER:", msg);
+        res.status(status).json({ error: msg });
     }
 });
 
-// Matrix Export (nutzt Memory Cache)
 app.post('/api/matrix', (req, res) => {
     const { weekDates } = req.body;
     const db = memoryCache || { attendance: {} };
